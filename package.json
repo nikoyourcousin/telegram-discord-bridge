@@ -1,0 +1,21 @@
+{
+  "name": "telegram-discord-bridge",
+  "version": "1.0.0",
+  "description": "Bridge between Telegram channel and Discord",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node test-connection.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "node-telegram-bot-api": "^0.64.0",
+    "axios": "^1.6.0",
+    "form-data": "^4.0.0",
+    "https-proxy-agent": "^7.0.0",
+    "dotenv": "^16.3.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  }
+}
