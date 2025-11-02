@@ -40,8 +40,8 @@ TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
 TELEGRAM_CHANNEL_ID=your_telegram_channel_id_here
 
 # Discord Webhook Configuration
-DISCORD_APP_TITLE=your_discord_app_title
-DISCORD_APP_LOGO=your_discord_app_logo
+DISCORD_APP_TITLE=your_discord_app_title_here
+DISCORD_APP_LOGO=your_discord_app_logo_here
 DISCORD_WEBHOOK_URL=your_discord_webhook_url_here
 
 # Proxy Configuration (опционально)
