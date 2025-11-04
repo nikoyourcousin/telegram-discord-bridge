@@ -81,7 +81,7 @@ function createAxiosConfig() {
   return axiosConfig;
 }
 
-async function sendToDiscord(content, fileBuffer = null, filename = 'file') {
+async function sendToDiscord(content, files = []) {
   try {
     const formData = new FormData();
     
@@ -93,9 +93,13 @@ async function sendToDiscord(content, fileBuffer = null, filename = 'file') {
     formData.append('username', config.DISCORD_APP_TITLE);
     formData.append('avatar_url', config.DISCORD_APP_LOGO);
 
-    if (fileBuffer) {
-      formData.append('file', fileBuffer, filename);
-      console.log(`📤 Отправляем файл в Discord: ${filename}`);
+    // Добавляем все файлы в форму
+    if (files.length > 0) {
+      console.log(`📤 Отправляем ${files.length} файлов в Discord`);
+      files.forEach((file, index) => {
+        formData.append(`file${index}`, file.buffer, file.filename);
+        console.log(`   - Файл ${index + 1}: ${file.filename}`);
+      });
     }
 
     const requestConfig = {
@@ -151,35 +155,49 @@ async function downloadTelegramFile(fileId) {
   }
 }
 
-bot.on('channel_post', async (post) => {
-  console.log('\n=== 📨 ПОЛУЧЕН ПОСТ ИЗ КАНАЛА ===');
-  console.log('Chat ID:', post.chat.id);
-  console.log('Chat Title:', post.chat.title);
-  console.log('Post ID:', post.message_id);
-  console.log('Тип поста:', post.text ? 'текст' : 
-                            post.photo ? 'фото' : 
-                            post.video ? 'видео' : 
-                            post.document ? 'документ' : 
-                            post.audio ? 'аудио' : 
-                            'другое');
+// Хранилище для медиа-групп
+const mediaGroups = new Map();
 
+// Единственный обработчик для всех сообщений
+bot.on('channel_post', async (post) => {
+  // Пропускаем посты не из целевого канала
   const expectedChannelId = config.TELEGRAM_CHANNEL_ID;
   const receivedChatId = post.chat.id.toString();
   
-  console.log(`Ожидаемый ID: ${expectedChannelId}`);
-  console.log(`Полученный ID: ${receivedChatId}`);
-  
   if (receivedChatId !== expectedChannelId) {
-    console.log(`❌ Пропускаем пост: ID канала не совпадает`);
     return;
   }
 
-  console.log('✅ Пост из целевого канала, обрабатываем...');
+  console.log('\n=== 📨 ПОЛУЧЕН ПОСТ ИЗ КАНАЛА ===');
+  console.log('Chat ID:', post.chat.id);
+  console.log('Post ID:', post.message_id);
+  console.log('Media Group ID:', post.media_group_id || 'нет');
+  console.log('Тип:', 
+    post.text ? 'текст' :
+    post.photo ? 'фото' :
+    post.video ? 'видео' :
+    post.document ? 'документ' :
+    post.audio ? 'аудио' :
+    'другое'
+  );
 
+  // ВСЕ сообщения с media_group_id обрабатываем как группы
+  if (post.media_group_id) {
+    await handleMediaGroup(post);
+    return;
+  }
+
+  // Обычные сообщения без media_group_id
+  await handleSingleMessage(post);
+});
+
+async function handleSingleMessage(post) {
+  console.log('🔄 Обрабатываем обычное сообщение');
+  
   let discordContent = '';
-  let fileBuffer = null;
-  let filename = 'file';
+  const files = [];
 
+  // Получаем текст
   if (post.text) {
     discordContent = post.text;
     console.log(`📝 Текст: ${discordContent.substring(0, 100)}...`);
@@ -189,41 +207,217 @@ bot.on('channel_post', async (post) => {
   }
 
   try {
+    // Обрабатываем фото - берем ТОЛЬКО фото высшего качества (последнее в массиве)
     if (post.photo && post.photo.length > 0) {
-      const photo = post.photo[post.photo.length - 1];
-      console.log(`🖼️ Фото обнаружено, file_id: ${photo.file_id}`);
-      fileBuffer = await downloadTelegramFile(photo.file_id);
-      filename = 'image.jpg';
-
-    } else if (post.video) {
-      console.log(`🎥 Видео обнаружено, file_id: ${post.video.file_id}`);
-      fileBuffer = await downloadTelegramFile(post.video.file_id);
-      filename = 'video.mp4';
-
-    } else if (post.document) {
-      console.log(`📎 Документ обнаружен: ${post.document.file_name}, file_id: ${post.document.file_id}`);
-      fileBuffer = await downloadTelegramFile(post.document.file_id);
-      filename = post.document.file_name || 'file';
-
-    } else if (post.audio) {
-      console.log(`🎵 Аудио обнаружено: ${post.audio.file_name}, file_id: ${post.audio.file_id}`);
-      fileBuffer = await downloadTelegramFile(post.audio.file_id);
-      filename = post.audio.file_name || 'audio.mp3';
+      console.log(`🖼️ Найдено ${post.photo.length} версий фото (берем только высшее качество)`);
+      
+      // Берем только фото наивысшего качества (последнее в массиве)
+      const bestPhoto = post.photo[post.photo.length - 1];
+      console.log(`📥 Скачиваем фото высшего качества: ${bestPhoto.file_id}`);
+      const fileBuffer = await downloadTelegramFile(bestPhoto.file_id);
+      if (fileBuffer) {
+        files.push({
+          buffer: fileBuffer,
+          filename: 'image.jpg'
+        });
+      }
     }
 
-    console.log('🔄 Отправляем в Discord...');
-    const success = await sendToDiscord(discordContent, fileBuffer, filename);
-    
-    if (success) {
-      console.log('🎉 Пост успешно переслан в Discord!');
+    // Обрабатываем видео
+    if (post.video) {
+      console.log(`🎥 Видео: ${post.video.file_name || 'video'}`);
+      const fileBuffer = await downloadTelegramFile(post.video.file_id);
+      if (fileBuffer) {
+        files.push({
+          buffer: fileBuffer,
+          filename: post.video.file_name || 'video.mp4'
+        });
+      }
+    }
+
+    // Обрабатываем документы
+    if (post.document) {
+      console.log(`📎 Документ: ${post.document.file_name}`);
+      const fileBuffer = await downloadTelegramFile(post.document.file_id);
+      if (fileBuffer) {
+        files.push({
+          buffer: fileBuffer,
+          filename: post.document.file_name || 'file'
+        });
+      }
+    }
+
+    // Обрабатываем аудио
+    if (post.audio) {
+      console.log(`🎵 Аудио: ${post.audio.file_name}`);
+      const fileBuffer = await downloadTelegramFile(post.audio.file_id);
+      if (fileBuffer) {
+        files.push({
+          buffer: fileBuffer,
+          filename: post.audio.file_name || 'audio.mp3'
+        });
+      }
+    }
+
+    // Отправляем в Discord
+    if (files.length > 0 || discordContent) {
+      console.log(`🔄 Отправляем в Discord: ${files.length} файлов`);
+      const success = await sendToDiscord(discordContent, files);
+      
+      if (success) {
+        console.log('🎉 Сообщение успешно отправлено в Discord!');
+      } else {
+        console.log('💥 Не удалось отправить сообщение в Discord');
+      }
     } else {
-      console.log('💥 Не удалось отправить пост в Discord');
+      console.log('❌ Нет контента для отправки');
     }
 
   } catch (error) {
-    console.error('❌ Критическая ошибка обработки:', error);
+    console.error('❌ Ошибка обработки сообщения:', error);
   }
-});
+}
+
+async function handleMediaGroup(post) {
+  const mediaGroupId = post.media_group_id;
+  console.log(`🖼️ Обрабатываем медиа-группу: ${mediaGroupId}, сообщение: ${post.message_id}`);
+
+  // Создаем или получаем группу
+  if (!mediaGroups.has(mediaGroupId)) {
+    console.log(`🆕 Создаем новую группу: ${mediaGroupId}`);
+    mediaGroups.set(mediaGroupId, {
+      content: post.caption || '',
+      files: [],
+      messageIds: new Set(),
+      processing: false,
+      lastMessageTime: Date.now(),
+      downloadPromises: [] // Храним промисы загрузки файлов
+    });
+
+    // Устанавливаем таймер для отправки группы
+    setTimeout(async () => {
+      const group = mediaGroups.get(mediaGroupId);
+      if (group && !group.processing) {
+        console.log(`⏰ Таймер сработал для группы ${mediaGroupId}, ожидаем завершения загрузки...`);
+        
+        // Ждем завершения всех загрузок
+        if (group.downloadPromises.length > 0) {
+          await Promise.allSettled(group.downloadPromises);
+          console.log(`✅ Все загрузки для группы ${mediaGroupId} завершены`);
+        }
+        
+        await processMediaGroup(mediaGroupId, group);
+      }
+    }, 5000); // Даем 5 секунд на получение всех сообщений и загрузку файлов
+  }
+
+  const group = mediaGroups.get(mediaGroupId);
+  
+  // Обновляем время последнего сообщения
+  group.lastMessageTime = Date.now();
+
+  // Проверяем, не обрабатывали ли мы уже это сообщение
+  if (group.messageIds.has(post.message_id)) {
+    console.log(`⚠️ Сообщение ${post.message_id} уже обработано в группе ${mediaGroupId}`);
+    return;
+  }
+
+  group.messageIds.add(post.message_id);
+
+  // Обновляем контент (если есть подпись и ее еще нет)
+  if (post.caption && !group.content) {
+    group.content = post.caption;
+    console.log(`📝 Установлен текст для группы: ${group.content.substring(0, 100)}...`);
+  }
+
+  // Скачиваем и добавляем файлы
+  const downloadPromise = processMediaInGroup(post, group, mediaGroupId);
+  group.downloadPromises.push(downloadPromise);
+}
+
+async function processMediaInGroup(post, group, mediaGroupId) {
+  // Добавляем ТОЛЬКО фото высшего качества из каждого сообщения
+  if (post.photo && post.photo.length > 0) {
+    console.log(`📸 Найдено ${post.photo.length} версий фото в сообщении ${post.message_id} (берем только высшее качество)`);
+    
+    // В медиа-группах каждое сообщение обычно содержит одно фото в разных размерах
+    // Берем только фото наивысшего качества (последнее в массиве)
+    const bestPhoto = post.photo[post.photo.length - 1];
+    console.log(`📥 Скачиваем фото высшего качества для группы: ${bestPhoto.file_id}`);
+    
+    try {
+      const fileBuffer = await downloadTelegramFile(bestPhoto.file_id);
+      if (fileBuffer) {
+        group.files.push({
+          buffer: fileBuffer,
+          filename: `image_${group.files.length + 1}.jpg`
+        });
+        console.log(`✅ Файл успешно добавлен в группу ${mediaGroupId}, всего файлов: ${group.files.length}`);
+      }
+    } catch (error) {
+      console.error(`❌ Ошибка загрузки файла для группы ${mediaGroupId}:`, error.message);
+    }
+  } else if (post.video) {
+    console.log(`📥 Добавляем видео в группу: ${post.video.file_id}`);
+    try {
+      const fileBuffer = await downloadTelegramFile(post.video.file_id);
+      if (fileBuffer) {
+        group.files.push({
+          buffer: fileBuffer,
+          filename: post.video.file_name || `video_${group.files.length + 1}.mp4`
+        });
+      }
+    } catch (error) {
+      console.error(`❌ Ошибка загрузки видео для группы ${mediaGroupId}:`, error.message);
+    }
+  } else if (post.document) {
+    console.log(`📥 Добавляем документ в группу: ${post.document.file_id}`);
+    try {
+      const fileBuffer = await downloadTelegramFile(post.document.file_id);
+      if (fileBuffer) {
+        group.files.push({
+          buffer: fileBuffer,
+          filename: post.document.file_name || `file_${group.files.length + 1}`
+        });
+      }
+    } catch (error) {
+      console.error(`❌ Ошибка загрузки документа для группы ${mediaGroupId}:`, error.message);
+    }
+  }
+
+  console.log(`📊 Группа ${mediaGroupId}: ${group.files.length} файлов из ${group.messageIds.size} сообщений`);
+}
+
+async function processMediaGroup(mediaGroupId, group) {
+  if (group.processing) {
+    return;
+  }
+  
+  group.processing = true;
+  
+  console.log(`\n=== 📨 ОБРАБОТКА ГРУППЫ МЕДИА ===`);
+  console.log(`Группа: ${mediaGroupId}`);
+  console.log(`Сообщений: ${group.messageIds.size}`);
+  console.log(`Файлов: ${group.files.length}`);
+  console.log(`Текст: ${group.content || 'нет'}`);
+
+  if (group.files.length > 0) {
+    console.log(`🔄 Отправляем группу медиа в Discord...`);
+    const success = await sendToDiscord(group.content, group.files);
+    
+    if (success) {
+      console.log('🎉 Группа медиа успешно отправлена в Discord!');
+    } else {
+      console.log('💥 Не удалось отправить группу медиа в Discord');
+    }
+  } else {
+    console.log('❌ В группе медиа нет файлов для отправки');
+  }
+
+  // Удаляем группу из хранилища
+  mediaGroups.delete(mediaGroupId);
+  console.log(`🗑️ Группа ${mediaGroupId} удалена из хранилища`);
+}
 
 bot.on('polling_error', (error) => {
   console.error('❌ Ошибка polling:', error);
