@@ -191,6 +191,7 @@ async function handleSingleMessage(post) {
   let discordContent = '';
   const files = [];
 
+  // Получаем текст
   if (post.text) {
     discordContent = post.text;
     console.log(`📝 Текст: ${discordContent.substring(0, 100)}...`);
@@ -200,6 +201,7 @@ async function handleSingleMessage(post) {
   }
 
   try {
+    // Обрабатываем фото - берем ТОЛЬКО фото высшего качества (последнее в массиве)
     if (post.photo && post.photo.length > 0) {
       console.log(`🖼️ Найдено ${post.photo.length} версий фото (берем только высшее качество)`);
       
