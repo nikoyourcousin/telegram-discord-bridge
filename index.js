@@ -154,6 +154,12 @@ async function downloadTelegramFile(fileId) {
   }
 }
 
+function formatDuration(seconds) {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
+
 const mediaGroups = new Map();
 
 bot.on('channel_post', async (post) => {
@@ -174,6 +180,8 @@ bot.on('channel_post', async (post) => {
     post.video ? 'видео' :
     post.document ? 'документ' :
     post.audio ? 'аудио' :
+    post.voice ? 'голосовое сообщение' :
+    post.video_note ? 'видеосообщение (кружочек)' :
     'другое'
   );
 
@@ -191,7 +199,6 @@ async function handleSingleMessage(post) {
   let discordContent = '';
   const files = [];
 
-  // Получаем текст
   if (post.text) {
     discordContent = post.text;
     console.log(`📝 Текст: ${discordContent.substring(0, 100)}...`);
@@ -201,7 +208,6 @@ async function handleSingleMessage(post) {
   }
 
   try {
-    // Обрабатываем фото - берем ТОЛЬКО фото высшего качества (последнее в массиве)
     if (post.photo && post.photo.length > 0) {
       console.log(`🖼️ Найдено ${post.photo.length} версий фото (берем только высшее качество)`);
       
@@ -249,6 +255,40 @@ async function handleSingleMessage(post) {
       }
     }
 
+    if (post.voice) {
+      console.log(`🎤 Голосовое сообщение (${formatDuration(post.voice.duration)} сек)`);
+      const fileBuffer = await downloadTelegramFile(post.voice.file_id);
+      if (fileBuffer) {
+        files.push({
+          buffer: fileBuffer,
+          filename: `voice_message_${post.message_id}.ogg`
+        });
+        
+        if (!discordContent) {
+          discordContent = `🎤 Голосовое сообщение (${formatDuration(post.voice.duration)})`;
+        } else {
+          discordContent += `\n🎤 Голосовое сообщение (${formatDuration(post.voice.duration)})`;
+        }
+      }
+    }
+
+    if (post.video_note) {
+      console.log(`⭕ Видеосообщение (кружочек, ${formatDuration(post.video_note.duration)} сек)`);
+      const fileBuffer = await downloadTelegramFile(post.video_note.file_id);
+      if (fileBuffer) {
+        files.push({
+          buffer: fileBuffer,
+          filename: `video_note_${post.message_id}.mp4`
+        });
+        
+        if (!discordContent) {
+          discordContent = `⭕ Видеосообщение (${formatDuration(post.video_note.duration)})`;
+        } else {
+          discordContent += `\n⭕ Видеосообщение (${formatDuration(post.video_note.duration)})`;
+        }
+      }
+    }
+
     if (files.length > 0 || discordContent) {
       console.log(`🔄 Отправляем в Discord: ${files.length} файлов`);
       const success = await sendToDiscord(discordContent, files);
@@ -279,7 +319,7 @@ async function handleMediaGroup(post) {
       messageIds: new Set(),
       processing: false,
       lastMessageTime: Date.now(),
-      downloadPromises: []
+      downloadPromises: [] 
     });
 
     setTimeout(async () => {
@@ -320,7 +360,7 @@ async function handleMediaGroup(post) {
 async function processMediaInGroup(post, group, mediaGroupId) {
   if (post.photo && post.photo.length > 0) {
     console.log(`📸 Найдено ${post.photo.length} версий фото в сообщении ${post.message_id} (берем только высшее качество)`);
-
+    
     const bestPhoto = post.photo[post.photo.length - 1];
     console.log(`📥 Скачиваем фото высшего качества для группы: ${bestPhoto.file_id}`);
     
@@ -361,6 +401,44 @@ async function processMediaInGroup(post, group, mediaGroupId) {
       }
     } catch (error) {
       console.error(`❌ Ошибка загрузки документа для группы ${mediaGroupId}:`, error.message);
+    }
+  } else if (post.voice) {
+    console.log(`📥 Добавляем голосовое сообщение в группу: ${post.voice.file_id}`);
+    try {
+      const fileBuffer = await downloadTelegramFile(post.voice.file_id);
+      if (fileBuffer) {
+        group.files.push({
+          buffer: fileBuffer,
+          filename: `voice_${group.files.length + 1}.ogg`
+        });
+        
+        if (group.content) {
+          group.content += `\n🎤 Голосовое сообщение (${formatDuration(post.voice.duration)})`;
+        } else {
+          group.content = `🎤 Голосовое сообщение (${formatDuration(post.voice.duration)})`;
+        }
+      }
+    } catch (error) {
+      console.error(`❌ Ошибка загрузки голосового сообщения для группы ${mediaGroupId}:`, error.message);
+    }
+  } else if (post.video_note) {
+    console.log(`📥 Добавляем видеосообщение в группу: ${post.video_note.file_id}`);
+    try {
+      const fileBuffer = await downloadTelegramFile(post.video_note.file_id);
+      if (fileBuffer) {
+        group.files.push({
+          buffer: fileBuffer,
+          filename: `video_note_${group.files.length + 1}.mp4`
+        });
+        
+        if (group.content) {
+          group.content += `\n⭕ Видеосообщение (${formatDuration(post.video_note.duration)})`;
+        } else {
+          group.content = `⭕ Видеосообщение (${formatDuration(post.video_note.duration)})`;
+        }
+      }
+    } catch (error) {
+      console.error(`❌ Ошибка загрузки видеосообщения для группы ${mediaGroupId}:`, error.message);
     }
   }
 
