@@ -1,38 +1,38 @@
 # 🤖 Telegram to Discord Bridge
 
-## 📋 Описание
+## 📋 Description
 
-Этот бот автоматически пересылает все новые сообщения из указанного Telegram канала в Discord канал через webhook. Поддерживаются текстовые сообщения, фото, видео, документы и аудио.
+This bot automatically forwards all new messages from a specified Telegram channel to a Discord channel via webhook. Supports text messages, photos, videos, documents, and audio.
 
-## 🚀 Возможности
+## 🚀 Features
 
-- ✅ Автоматическая пересылка сообщений из Telegram в Discord
-- ✅ Поддержка различных типов контента:
-  - 📝 Текстовые сообщения
-  - 🖼️ Фотографии
-  - 🎥 Видео
-  - 📎 Документы
-  - 🎵 Аудио файлы
-- 🔄 Поддержка прокси для обхода блокировок
-- 🛡️ Надежная обработка ошибок
-- 📊 Подробное логирование
+- ✅ Automatic message forwarding from Telegram to Discord
+- ✅ Support for various content types:
+  - 📝 Text messages
+  - 🖼️ Photos
+  - 🎥 Videos
+  - 📎 Documents
+  - 🎵 Audio files
+- 🔄 Proxy support for bypassing restrictions
+- 🛡️ Robust error handling
+- 📊 Detailed logging
 
-## ⚙️ Установка
+## ⚙️ Installation
 
-### 1. Клонирование и настройка
+### 1. Cloning and Setup
 
 ```bash
-# Клонируйте репозиторий
+# Clone the repository
 git clone https://github.com/nikoyourcousin/telegram-discord-bridge.git
 cd telegram-discord-bridge
 
-# Установите зависимости
+# Install dependencies
 npm install
 ```
 
-### 2. Настройка переменных окружения
+### 2. Environment Variables Configuration
 
-Создайте файл `.env` в корне проекта:
+Create a `.env` file in the project root:
 
 ```env
 # Telegram Bot Configuration
@@ -44,113 +44,113 @@ DISCORD_APP_TITLE=your_discord_app_title_here
 DISCORD_APP_LOGO=your_discord_app_logo_here
 DISCORD_WEBHOOK_URL=your_discord_webhook_url_here
 
-# Proxy Configuration (опционально)
+# Proxy Configuration (optional)
 PROXY_URL=your_proxy_url_here
 ```
 
-## 🔧 Получение конфигурационных данных
+## 🔧 Obtaining Configuration Data
 
 ### 1. Telegram Bot Token
 
-1. Найдите в Telegram бота [@BotFather](https://t.me/BotFather)
-2. Отправьте команду `/newbot`
-3. Следуйте инструкциям и получите токен
-4. Добавьте бота в канал как администратора с правами "Read messages"
+1. Find [@BotFather](https://t.me/BotFather) in Telegram
+2. Send the `/newbot` command
+3. Follow the instructions and get the token
+4. Add the bot to your channel as an administrator with "Read messages" permissions
 
 ### 2. Telegram Channel ID
 
-1. Найдите бота [@username_to_id_bot](https://t.me/username_to_id_bot)
-2. Перешлите любое сообщение из вашего канала этому боту
-3. Получите числовой ID канала (начинается с -100)
+1. Find the [@username_to_id_bot](https://t.me/username_to_id_bot) bot
+2. Forward any message from your channel to this bot
+3. Get the numeric channel ID (starts with -100)
 
 ### 3. Discord Webhook URL
 
-1. Зайдите в настройки Discord канала
-2. Перейдите в "Integrations" → "Webhooks"
-3. Нажмите "Create Webhook" или "New Webhook"
-4. Скопируйте URL webhook
+1. Go to your Discord channel settings
+2. Navigate to "Integrations" → "Webhooks"
+3. Click "Create Webhook" or "New Webhook"
+4. Copy the webhook URL
 
-### 4. Proxy URL (опционально)
+### 4. Proxy URL (optional)
 
-Если требуется обход блокировок, укажите URL прокси в формате:
+If you need to bypass restrictions, specify the proxy URL in the format:
 - HTTP: `http://username:password@proxy-ip:port`
-- HTTP без авторизации: `http://proxy-ip:port`
+- HTTP without authentication: `http://proxy-ip:port`
 - SOCKS5: `socks5://username:password@proxy-ip:port`
 
-## 🚀 Запуск
+## 🚀 Running the Bot
 
-### Режим разработки (с авто-перезагрузкой)
+### Development Mode (with auto-reload)
 ```bash
 npm run dev
 ```
 
-### Продакшен режим
+### Production Mode
 ```bash
 npm start
 ```
 
-## 📝 Пример использования
+## 📝 Usage Example
 
-После запуска бота:
+After starting the bot:
 
-1. 📨 Отправьте сообщение в ваш Telegram канал
-2. 🔄 Бот автоматически обнаружит новое сообщение
-3. 📤 Перешлет его в указанный Discord канал
-4. ✅ В консоли вы увидите статус операции
+1. 📨 Send a message to your Telegram channel
+2. 🔄 The bot will automatically detect the new message
+3. 📤 Forward it to the specified Discord channel
+4. ✅ You'll see the operation status in the console
 
-## 🐛 Диагностика проблем
+## 🐛 Troubleshooting
 
-### Тест подключения к Discord
+### Discord Connection Test
 ```bash
 npm run test
 ```
 
-### Частые проблемы и решения
+### Common Issues and Solutions
 
-**Бот не видит сообщения в канале:**
-- Проверьте, что бот добавлен как администратор канала
-- Убедитесь, что у бота есть права "Read messages"
-- Проверьте правильность TELEGRAM_CHANNEL_ID
+**Bot doesn't see messages in the channel:**
+- Verify the bot is added as a channel administrator
+- Ensure the bot has "Read messages" permissions
+- Check the correctness of TELEGRAM_CHANNEL_ID
 
-**Ошибки отправки в Discord:**
-- Проверьте правильность DISCORD_WEBHOOK_URL
-- Убедитесь, что webhook не удален в Discord
-- Проверьте подключение к интернету
+**Discord sending errors:**
+- Verify the correctness of DISCORD_WEBHOOK_URL
+- Ensure the webhook hasn't been deleted in Discord
+- Check internet connection
 
-**Проблемы с прокси:**
-- Проверьте доступность прокси сервера
-- Убедитесь в правильности формата URL
-- При проблемах - отключите прокси (удалите PROXY_URL из .env)
+**Proxy issues:**
+- Verify proxy server availability
+- Ensure correct URL format
+- If problems persist, disable proxy (remove PROXY_URL from .env)
 
-## 📁 Структура проекта
+## 📁 Project Structure
 
 ```
 telegram-discord-bridge/
-├── .env                    # Конфигурационные переменные
-├── .gitignore             # Игнорируемые файлы
-├── package.json           # Зависимости и скрипты
-├── index.js              # Основной код бота
-├── test-connection.js    # Скрипт тестирования подключения
-└── README.md            # Документация
+├── .env                    # Configuration variables
+├── .gitignore             # Ignored files
+├── package.json           # Dependencies and scripts
+├── index.js              # Main bot code
+├── test-connection.js    # Connection testing script
+└── README.md            # Documentation
 ```
 
-## 🔒 Безопасность
+## 🔒 Security
 
-- Никогда не коммитьте файл `.env` в git
-- Храните токены и ключи в секрете
-- Используйте разные боты для разработки и продакшена
+- Never commit the `.env` file to git
+- Keep tokens and keys secret
+- Use different bots for development and production
 
-## 📄 Лицензия
+## 📄 License
 
 MIT License
 
-## 🤝 Поддержка
+## 🤝 Support
 
-Если у вас возникли проблемы:
+If you encounter issues:
 
-1. Проверьте логи в консоли
-2. Убедитесь в правильности всех конфигурационных данных
-3. Запустите тестовые скрипты для диагностики
-4. Проверьте наличие последних обновлений
+1. Check the console logs
+2. Verify all configuration data is correct
+3. Run test scripts for diagnostics
+4. Check for the latest updates
 
 ---
